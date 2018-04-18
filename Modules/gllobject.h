@@ -18,7 +18,7 @@ typedef struct {
 } PyGllObject;
 #endif
 
-PyAPI_DATA(PyTypeObject) PyGll_Type;
+
 // PyAPI_DATA(PyTypeObject) PyGllIter_Type;
 // PyAPI_DATA(PyTypeObject) PyGllRevIter_Type;
 // PyAPI_DATA(PyTypeObject) PySortWrapper_Type;

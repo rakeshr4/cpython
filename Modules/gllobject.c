@@ -1,6 +1,6 @@
 #include "Python.h"
 // #include "internal/pystate.h"
-// #include "accu.h"
+#include "accu.h"
 
 // #ifdef STDC_HEADERS
 // #include <stddef.h>
@@ -14,6 +14,16 @@
 // #endif
 // static PyGllObject *free_list[PyList_MAXFREELIST];
 static int numfree = 0;
+
+static PyTypeObject PyGll_Type = {
+    PyVarObject_HEAD_INIT(NULL, 0)
+    .tp_name = "gillessList.Gll",
+    .tp_doc = "Gll objects",
+    .tp_basicsize = sizeof(PyGllObject),
+    .tp_itemsize = 0,
+    .tp_flags = Py_TPFLAGS_DEFAULT,
+    .tp_new = PyType_GenericNew,
+};
 
 static PyObject *
 list_create(PyObject *self, PyObject *args) {
@@ -41,7 +51,7 @@ list_create(PyObject *self, PyObject *args) {
         //     count_reuse++;
         // #endif
     } else {
-        op = PyObject_GC_New(PyGllObject, &PyGll_Type);
+        op = PyObject_New(PyGllObject, &PyGll_Type);
         if (op == NULL)
             return NULL;
 // #ifdef SHOW_ALLOC_COUNT
@@ -59,7 +69,7 @@ list_create(PyObject *self, PyObject *args) {
     }
     Py_SIZE(op) = size;
     op->allocated = size;
-    _PyObject_GC_TRACK(op);
+    // _PyObject_GC_TRACK(op);
     return (PyObject *) op;
     // return Py_BuildValue("s", "list create!");
 }
@@ -102,5 +112,8 @@ static struct PyModuleDef moduledef = {
 PyMODINIT_FUNC 
 PyInit_gillessList(void)
 {
-    return PyModule_Create(&moduledef);
+    PyObject *m = PyModule_Create(&moduledef);
+    Py_INCREF(&PyGll_Type);
+    PyModule_AddObject(m, "Gll", (PyObject *) &PyGll_Type);
+    return m;
 }
