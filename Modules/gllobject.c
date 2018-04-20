@@ -9,11 +9,12 @@
 // #endif
 
 #include "gllobject.h"
-// #ifndef PyList_MAXFREELIST
-// #define PyList_MAXFREELIST 80
-// #endif
-// static PyGllObject *free_list[PyList_MAXFREELIST];
+#ifndef PyList_MAXFREELIST
+#define PyList_MAXFREELIST 80
+#endif
+static PyGllObject *free_list[PyList_MAXFREELIST];
 static int numfree = 0;
+
 
 static PyTypeObject PyGll_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
@@ -43,15 +44,15 @@ list_create(PyObject *self, PyObject *args) {
         return NULL;
     }
     if (numfree) {
-        ;
-        // numfree--;
-        // op = free_list[numfree];
-        // _Py_NewReference((PyObject *)op);
+        // ;
+        numfree--;
+        op = free_list[numfree];
+        _Py_NewReference((PyObject *)op);
         // #ifdef SHOW_ALLOC_COUNT
         //     count_reuse++;
         // #endif
     } else {
-        op = PyObject_New(PyGllObject, &PyGll_Type);
+        op = PyObject_GC_New(PyGllObject, &PyGll_Type);
         if (op == NULL)
             return NULL;
 // #ifdef SHOW_ALLOC_COUNT
@@ -69,7 +70,6 @@ list_create(PyObject *self, PyObject *args) {
     }
     Py_SIZE(op) = size;
     op->allocated = size;
-    // _PyObject_GC_TRACK(op);
     return (PyObject *) op;
     // return Py_BuildValue("s", "list create!");
 }
