@@ -94,17 +94,35 @@ set_item(PyObject *self, PyObject *args)
     if (!PyGll_Check(gll)) {
         Py_XDECREF(newitem);
         PyErr_BadInternalCall();
-        return Py_BuildValue("i", -1);
+        return NULL;
     }
     if (i < 0 || i >= Py_SIZE(gll)) {
         Py_XDECREF(newitem);
         PyErr_SetString(PyExc_IndexError,
                         "list assignment index out of range");
-        return Py_BuildValue("i", -1);
+        return NULL;
     }
     p = ((PyListObject *)gll) -> ob_item + i;
     Py_XSETREF(*p, newitem);
     return Py_BuildValue("i", 0);
+
+}
+
+static PyObject *
+get_item(PyObject *self, PyObject *args) {
+
+    Py_ssize_t i;
+    PyObject *op;
+    PyArg_ParseTuple(args, "On", &op, &i);
+    if (!PyGll_Check(op)) {
+        PyErr_BadInternalCall();
+        return NULL;
+    }
+    if (i < 0 || i >= Py_SIZE(op)) {
+        PyErr_SetString(PyExc_IndexError, "list index out of range");
+        return NULL;
+    }
+    return ((PyGllObject *)op) -> ob_item[i];
 }
 
 // Module functions table.
@@ -114,6 +132,7 @@ module_functions[] = {
     { "list_create", list_create, METH_VARARGS, "Create list." },
     { "list_append", list_append, METH_VARARGS, "list append" },
     { "list_extend", list_extend, METH_VARARGS, "list extend" },
+    { "get_item", get_item, METH_VARARGS, "Get item in list" },
     { "set_item", set_item, METH_VARARGS, "Set item in list" },
     {NULL, NULL, 0, NULL}
 };
@@ -137,7 +156,9 @@ PyMODINIT_FUNC
 PyInit_gillessList(void)
 {
     PyObject *m = PyModule_Create(&moduledef);
+    if (m == NULL)
+        return NULL;
     Py_INCREF(&PyGll_Type);
-    PyModule_AddObject(m, "Gll", (PyObject *) &PyGll_Type);
+    PyModule_AddObject(m, "gll", (PyObject *) &PyGll_Type);
     return m;
 }
