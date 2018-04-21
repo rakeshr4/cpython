@@ -122,7 +122,13 @@ get_item(PyObject *self, PyObject *args) {
         PyErr_SetString(PyExc_IndexError, "list index out of range");
         return NULL;
     }
-    return ((PyGllObject *)op) -> ob_item[i];
+    PyObject *item = ((PyGllObject *)op) -> ob_item[i];
+    if(item == NULL) {
+        Py_RETURN_NONE;
+    }
+    else {
+        return item;
+    }
 }
 
 // Module functions table.
