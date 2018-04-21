@@ -84,6 +84,29 @@ list_extend(PyObject *self, PyObject *args) {
     return Py_BuildValue("s", "list extend!");
 }
 
+static PyObject *
+set_item(PyObject *self, PyObject *args)
+{
+    Py_ssize_t i;
+    PyObject *gll, *newitem;
+    PyArg_ParseTuple(args, "OnO", &gll, &i, &newitem); 
+    PyObject **p;
+    if (!PyGll_Check(gll)) {
+        Py_XDECREF(newitem);
+        PyErr_BadInternalCall();
+        return Py_BuildValue("i", -1);
+    }
+    if (i < 0 || i >= Py_SIZE(gll)) {
+        Py_XDECREF(newitem);
+        PyErr_SetString(PyExc_IndexError,
+                        "list assignment index out of range");
+        return Py_BuildValue("i", -1);
+    }
+    p = ((PyListObject *)gll) -> ob_item + i;
+    Py_XSETREF(*p, newitem);
+    return Py_BuildValue("i", 0);
+}
+
 // Module functions table.
 
 static PyMethodDef
@@ -91,6 +114,7 @@ module_functions[] = {
     { "list_create", list_create, METH_VARARGS, "Create list." },
     { "list_append", list_append, METH_VARARGS, "list append" },
     { "list_extend", list_extend, METH_VARARGS, "list extend" },
+    { "set_item", set_item, METH_VARARGS, "Set item in list" },
     {NULL, NULL, 0, NULL}
 };
 

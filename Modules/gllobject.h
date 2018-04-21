@@ -24,7 +24,7 @@ typedef struct {
 // PyAPI_DATA(PyTypeObject) PySortWrapper_Type;
 
 #define PyGll_Check(op) \
-    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_GLL_SUBCLASS)
+    PyType_FastSubclass(Py_TYPE(op), Py_TPFLAGS_DEFAULT)
 #define PyGll_CheckExact(op) (Py_TYPE(op) == &PyGll_Type)
 
 
