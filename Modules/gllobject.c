@@ -40,27 +40,74 @@ PyGllObject_dealloc(PyGllObject *op)
         }
         PyMem_FREE(op->ob_item);
     }
-    if (numfree < PyList_MAXFREELIST && Py_TYPE(op) == &PyGll_Type)
+    if (numfree < PyList_MAXFREELIST && PyGll_CheckExact(op))
         free_list[numfree++] = op;
     else
         Py_TYPE(op)->tp_free((PyObject *)op);
     Py_TRASHCAN_SAFE_END(op)
 }
 
+static PyObject *
+list_repr(PyGllObject *v)
+{
+    Py_ssize_t i;
+    PyObject *s;
+    _PyUnicodeWriter writer;
 
+    if (Py_SIZE(v) == 0) {
+        return PyUnicode_FromString("[]");
+    }
+
+    i = Py_ReprEnter((PyObject*)v);
+    if (i != 0) {
+        return i > 0 ? PyUnicode_FromString("[...]") : NULL;
+    }
+
+    _PyUnicodeWriter_Init(&writer);
+    writer.overallocate = 1;
+    /* "[" + "1" + ", 2" * (len - 1) + "]" */
+    writer.min_length = 1 + 1 + (2 + 1) * (Py_SIZE(v) - 1) + 1;
+
+    if (_PyUnicodeWriter_WriteChar(&writer, '[') < 0)
+        goto error;
+
+     // Do repr() on each element.  Note that this may mutate the list,
+     //   so must refetch the list size on each iteration. 
+    for (i = 0; i < Py_SIZE(v); ++i) {
+        if (i > 0) {
+            if (_PyUnicodeWriter_WriteASCIIString(&writer, ", ", 2) < 0)
+                goto error;
+        }
+
+        s = PyObject_Repr(v->ob_item[i]);
+        if (s == NULL)
+            goto error;
+
+        if (_PyUnicodeWriter_WriteStr(&writer, s) < 0) {
+            Py_DECREF(s);
+            goto error;
+        }
+        Py_DECREF(s);
+    }
+
+    writer.overallocate = 0;
+    if (_PyUnicodeWriter_WriteChar(&writer, ']') < 0)
+        goto error;
+
+    Py_ReprLeave((PyObject *)v);
+    return _PyUnicodeWriter_Finish(&writer);
+
+error:
+    _PyUnicodeWriter_Dealloc(&writer);
+    Py_ReprLeave((PyObject *)v);
+    return NULL;
+}
 
 static PyObject *
 list_create(PyObject *self, PyObject *args) {
     int size;
     PyArg_ParseTuple(args, "i", &size); 
-    PyGllObject *op;
-// #ifdef SHOW_ALLOC_COUNT
-//     static int initialized = 0;
-//     if (!initialized) {
-//         Py_AtExit(show_alloc);
-//         initialized = 1;
-//     }
-// #endif
+    PyGllObject *op = NULL;
 
     if (size < 0) {
         PyErr_BadInternalCall();
@@ -71,16 +118,10 @@ list_create(PyObject *self, PyObject *args) {
         numfree--;
         op = free_list[numfree];
         _Py_NewReference((PyObject *)op);
-        // #ifdef SHOW_ALLOC_COUNT
-        //     count_reuse++;
-        // #endif
     } else {
         op = PyObject_GC_New(PyGllObject, &PyGll_Type);
         if (op == NULL)
             return NULL;
-// #ifdef SHOW_ALLOC_COUNT
-//         count_alloc++;
-// #endif
     }
     if (size <= 0)
         op->ob_item = NULL;
@@ -96,7 +137,6 @@ list_create(PyObject *self, PyObject *args) {
     return (PyObject *) op;
     // return Py_BuildValue("s", "list create!");
 }
-
 
 static int
 list_resize(PyGllObject *self, Py_ssize_t newsize)
@@ -131,30 +171,10 @@ list_resize(PyGllObject *self, Py_ssize_t newsize)
     return 0;
 }
 
-
 static int
 app1_gll(PyGllObject *self, PyObject *s)
 {
-    /*
-    Py_ssize_t n= self->allocated;
-    n=n+1;
-    Py_ssize_t num_allocated_bytes;
-    PyObject **items;      
-
-    num_allocated_bytes = n * sizeof(PyObject *);
-    items = (PyObject **)PyMem_Realloc(self->ob_item, num_allocated_bytes);
-    if (items == NULL) {
-        PyErr_NoMemory();
-        return -1;
-    }
-    self->ob_item = items;
-    Py_SIZE(self) = n;
-    self->allocated = n;
-    py_set_item(self,s);
-    return 0;
-	*/
-
-	Py_ssize_t n = PyGll_GET_SIZE(self);
+    Py_ssize_t n = PyGll_GET_SIZE(self);
 
     assert (s != NULL);
     if (n == PY_SSIZE_T_MAX) {
@@ -170,7 +190,6 @@ app1_gll(PyGllObject *self, PyObject *s)
     PyGll_SET_ITEM(self, n, s);
     return 0;
 }
-
 
 static PyObject *
 list_append(PyObject *self, PyObject *args) {
@@ -209,7 +228,7 @@ set_item(PyObject *self, PyObject *args)
                         "list assignment index out of range");
         return NULL;
     }
-    p = ((PyListObject *)gll) -> ob_item + i;
+    p = ((PyGllObject *)gll) -> ob_item + i;
     Py_XSETREF(*p, newitem);
     return Py_BuildValue("i", 0);
 
@@ -237,6 +256,7 @@ get_item(PyObject *self, PyObject *args) {
         return item;
     }
 }
+
 
 // Module functions table.
 
@@ -272,6 +292,7 @@ PyInit_gillessList(void)
     if (m == NULL)
         return NULL;
     PyGll_Type.tp_dealloc= (destructor)PyGllObject_dealloc;
+    PyGll_Type.tp_repr = (reprfunc)list_repr;
     Py_INCREF(&PyGll_Type);
     PyModule_AddObject(m, "gll", (PyObject *) &PyGll_Type);
     return m;

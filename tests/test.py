@@ -27,8 +27,15 @@ class Test():
 			print("Appending " + str(i))
 			list_append(l, 99)
 
+		# for i in range(8):
+		# 	print("Getting item " + str(i))
+		# 	print(get_item(l, i))
 
+		print("The list is: ")
+		print(l)
 		print("Test done!\n")
+
+
 
 def main():
 	test = Test()
