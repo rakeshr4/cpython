@@ -15,6 +15,19 @@
 static PyGllObject *free_list[PyList_MAXFREELIST];
 static int numfree = 0;
 
+void
+PyGllObject_dealloc(PyGllObject *self)
+{
+PySys_WriteStdout("des");
+	
+  // PyGllObject *self = (PyGllObject *) obj;
+	//Py_XDECREF(self->allocated);
+       free(&self->ob_item);
+    Py_TYPE(self)->tp_free((PyObject *)self);
+    
+	//PyObject_GC_Del(self);
+}
+
 
 static PyTypeObject PyGll_Type = {
     PyVarObject_HEAD_INIT(NULL, 0)
@@ -24,6 +37,7 @@ static PyTypeObject PyGll_Type = {
     .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
+    .tp_dealloc= (destructor)PyGllObject_dealloc
 };
 
 static PyObject *
@@ -73,6 +87,7 @@ list_create(PyObject *self, PyObject *args) {
     return (PyObject *) op;
     // return Py_BuildValue("s", "list create!");
 }
+
 
 
 static PyObject *
@@ -136,26 +151,7 @@ list_resize(PyGllObject *self, Py_ssize_t newsize)
 static int
 app1_gll(PyGllObject *self, PyObject *s)
 {
-    /*
-    Py_ssize_t n= self->allocated;
-    n=n+1;
-    Py_ssize_t num_allocated_bytes;
-    PyObject **items;      
-
-    num_allocated_bytes = n * sizeof(PyObject *);
-    items = (PyObject **)PyMem_Realloc(self->ob_item, num_allocated_bytes);
-    if (items == NULL) {
-        PyErr_NoMemory();
-        return -1;
-    }
-    self->ob_item = items;
-    Py_SIZE(self) = n;
-    self->allocated = n;
-    py_set_item(self,s);
-    return 0;
-	*/
-
-	Py_ssize_t n = PyList_GET_SIZE(self);
+    Py_ssize_t n = PyList_GET_SIZE(self);
 
     assert (s != NULL);
     if (n == PY_SSIZE_T_MAX) {
@@ -167,7 +163,7 @@ app1_gll(PyGllObject *self, PyObject *s)
     if (list_resize(self, n+1) < 0)
         return -1;
 
-    Py_INCREF(s);
+   //Py_INCREF(s);
     py_set_item(self, s);
     return 0;
 }
@@ -179,14 +175,10 @@ list_append(PyObject *self, PyObject *args) {
 	PyObject *ob,*s;
 	//char *s=NULL;
 	PyArg_ParseTuple(args, "OO", &ob, &s); 
-	//if (s!= NULL)
+	
 		return Py_BuildValue("i",app1_gll((PyGllObject *)ob, s));
 	
-   // PyErr_BadInternalCall();
-    return Py_BuildValue("i", -1);
-
-
-    return Py_BuildValue("s", "list append!");
+ 
 }
 
 static PyObject *
