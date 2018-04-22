@@ -27,7 +27,7 @@ PyGllObject_dealloc(PyGllObject *op)
         }
         PyMem_FREE(op->ob_item);
     }
-    if (numfree < PyList_MAXFREELIST && PyList_CheckExact(op))
+    if (numfree < PyList_MAXFREELIST && Py_TYPE(op) == &PyGll_Type)
         free_list[numfree++] = op;
     else
         Py_TYPE(op)->tp_free((PyObject *)op);
