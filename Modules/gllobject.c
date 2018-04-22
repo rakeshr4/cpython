@@ -16,28 +16,35 @@ static PyGllObject *free_list[PyList_MAXFREELIST];
 static int numfree = 0;
 
 void
-PyGllObject_dealloc(PyGllObject *self)
+PyGllObject_dealloc(PyGllObject *op)
 {
-PySys_WriteStdout("des");
-	
-  // PyGllObject *self = (PyGllObject *) obj;
-	//Py_XDECREF(self->allocated);
-       free(&self->ob_item);
-    Py_TYPE(self)->tp_free((PyObject *)self);
-    
-	//PyObject_GC_Del(self);
+    Py_ssize_t i;
+    Py_TRASHCAN_SAFE_BEGIN(op)
+    if (op->ob_item != NULL) {
+        i = Py_SIZE(op);
+        while (--i >= 0) {
+            Py_XDECREF(op->ob_item[i]);
+        }
+        PyMem_FREE(op->ob_item);
+    }
+    if (numfree < PyList_MAXFREELIST && PyList_CheckExact(op))
+        free_list[numfree++] = op;
+    else
+        Py_TYPE(op)->tp_free((PyObject *)op);
+    Py_TRASHCAN_SAFE_END(op)
 }
 
 
 static PyTypeObject PyGll_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     .tp_name = "gillessList.Gll",
     .tp_doc = "Gll objects",
     .tp_basicsize = sizeof(PyGllObject),
-    .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
-    .tp_dealloc= (destructor)PyGllObject_dealloc
+    .tp_dealloc= (destructor)PyGllObject_dealloc,
+    .tp_free = PyObject_GC_Del,
+    .tp_alloc = PyType_GenericAlloc
 };
 
 static PyObject *
