@@ -74,8 +74,118 @@ list_create(PyObject *self, PyObject *args) {
     // return Py_BuildValue("s", "list create!");
 }
 
+
+static PyObject *
+py_set_item(PyGllObject *gll, PyObject *newitem)
+{
+    Py_ssize_t i = PyList_GET_SIZE(gll)-1;
+   
+    PyObject **p;
+
+    if (!PyGll_Check(gll)) {
+        Py_XDECREF(newitem);
+        PyErr_BadInternalCall();
+        return NULL;
+    }
+    if (i < 0 || i >= Py_SIZE(gll)) {
+        Py_XDECREF(newitem);
+        PyErr_SetString(PyExc_IndexError,
+                        "list assignment index out of range");
+        return NULL;
+    }
+    p = ((PyGllObject *)gll) -> ob_item + i;
+    Py_XSETREF(*p, newitem);
+    return Py_BuildValue("i", 0);
+
+}
+
+static int
+list_resize(PyGllObject *self, Py_ssize_t newsize)
+{
+    PyObject **items;
+    size_t new_allocated, num_allocated_bytes;
+    Py_ssize_t allocated = self->allocated;
+
+     if (allocated >= newsize && newsize >= (allocated >> 1)) {
+        assert(self->ob_item != NULL || newsize == 0);
+        Py_SIZE(self) = newsize;
+        return 0;
+    }
+
+    new_allocated = (size_t)newsize + (newsize >> 3) + (newsize < 9 ? 3 : 6);
+    if (new_allocated > (size_t)PY_SSIZE_T_MAX / sizeof(PyObject *)) {
+        PyErr_NoMemory();
+        return -1;
+    }
+
+    if (newsize == 0)
+        new_allocated = 0;
+    num_allocated_bytes = new_allocated * sizeof(PyObject *);
+    items = (PyObject **)PyMem_Realloc(self->ob_item, num_allocated_bytes);
+    if (items == NULL) {
+        PyErr_NoMemory();
+        return -1;
+    }
+    self->ob_item = items;
+    Py_SIZE(self) = newsize;
+    self->allocated = new_allocated;
+    return 0;
+}
+
+
+static int
+app1_gll(PyGllObject *self, PyObject *s)
+{
+    /*
+    Py_ssize_t n= self->allocated;
+    n=n+1;
+    Py_ssize_t num_allocated_bytes;
+    PyObject **items;      
+
+    num_allocated_bytes = n * sizeof(PyObject *);
+    items = (PyObject **)PyMem_Realloc(self->ob_item, num_allocated_bytes);
+    if (items == NULL) {
+        PyErr_NoMemory();
+        return -1;
+    }
+    self->ob_item = items;
+    Py_SIZE(self) = n;
+    self->allocated = n;
+    py_set_item(self,s);
+    return 0;
+	*/
+
+	Py_ssize_t n = PyList_GET_SIZE(self);
+
+    assert (s != NULL);
+    if (n == PY_SSIZE_T_MAX) {
+        PyErr_SetString(PyExc_OverflowError,
+            "cannot add more objects to list");
+        return -1;
+    }
+
+    if (list_resize(self, n+1) < 0)
+        return -1;
+
+    Py_INCREF(s);
+    py_set_item(self, s);
+    return 0;
+}
+
+
 static PyObject *
 list_append(PyObject *self, PyObject *args) {
+    	
+	PyObject *ob,*s;
+	//char *s=NULL;
+	PyArg_ParseTuple(args, "OO", &ob, &s); 
+	//if (s!= NULL)
+		return Py_BuildValue("i",app1_gll((PyGllObject *)ob, s));
+	
+   // PyErr_BadInternalCall();
+    return Py_BuildValue("i", -1);
+
+
     return Py_BuildValue("s", "list append!");
 }
 
