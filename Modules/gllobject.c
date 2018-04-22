@@ -75,29 +75,6 @@ list_create(PyObject *self, PyObject *args) {
 }
 
 
-static PyObject *
-py_set_item(PyGllObject *gll, PyObject *newitem)
-{
-    Py_ssize_t i = PyList_GET_SIZE(gll)-1;
-   
-    PyObject **p;
-
-    if (!PyGll_Check(gll)) {
-        Py_XDECREF(newitem);
-        PyErr_BadInternalCall();
-        return NULL;
-    }
-    if (i < 0 || i >= Py_SIZE(gll)) {
-        Py_XDECREF(newitem);
-        PyErr_SetString(PyExc_IndexError,
-                        "list assignment index out of range");
-        return NULL;
-    }
-    p = ((PyGllObject *)gll) -> ob_item + i;
-    Py_XSETREF(*p, newitem);
-    return Py_BuildValue("i", 0);
-
-}
 
 static int
 list_resize(PyGllObject *self, Py_ssize_t newsize)
@@ -155,7 +132,7 @@ app1_gll(PyGllObject *self, PyObject *s)
     return 0;
 	*/
 
-	Py_ssize_t n = PyList_GET_SIZE(self);
+	Py_ssize_t n = PyGll_GET_SIZE(self);
 
     assert (s != NULL);
     if (n == PY_SSIZE_T_MAX) {
@@ -168,7 +145,7 @@ app1_gll(PyGllObject *self, PyObject *s)
         return -1;
 
     Py_INCREF(s);
-    py_set_item(self, s);
+    PyGll_SET_ITEM(self, n, s);
     return 0;
 }
 
@@ -176,17 +153,15 @@ app1_gll(PyGllObject *self, PyObject *s)
 static PyObject *
 list_append(PyObject *self, PyObject *args) {
     	
-	PyObject *ob,*s;
-	//char *s=NULL;
+	PyObject *ob, *s;
 	PyArg_ParseTuple(args, "OO", &ob, &s); 
-	//if (s!= NULL)
-		return Py_BuildValue("i",app1_gll((PyGllObject *)ob, s));
 	
-   // PyErr_BadInternalCall();
-    return Py_BuildValue("i", -1);
-
-
-    return Py_BuildValue("s", "list append!");
+    if (s!= NULL) {
+		return Py_BuildValue("i", app1_gll((PyGllObject *)ob, s));
+    }
+    else {
+        return Py_BuildValue("i", -1);
+    }
 }
 
 static PyObject *
