@@ -17,14 +17,37 @@ static int numfree = 0;
 
 
 static PyTypeObject PyGll_Type = {
-    PyVarObject_HEAD_INIT(NULL, 0)
+    PyVarObject_HEAD_INIT(&PyType_Type, 0)
     .tp_name = "gillessList.Gll",
     .tp_doc = "Gll objects",
     .tp_basicsize = sizeof(PyGllObject),
-    .tp_itemsize = 0,
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
+    .tp_free = PyObject_GC_Del,
+    .tp_alloc = PyType_GenericAlloc
 };
+
+
+void
+PyGllObject_dealloc(PyGllObject *op)
+{
+    Py_ssize_t i;
+    Py_TRASHCAN_SAFE_BEGIN(op)
+    if (op->ob_item != NULL) {
+        i = Py_SIZE(op);
+        while (--i >= 0) {
+            Py_XDECREF(op->ob_item[i]);
+        }
+        PyMem_FREE(op->ob_item);
+    }
+    if (numfree < PyList_MAXFREELIST && Py_TYPE(op) == &PyGll_Type)
+        free_list[numfree++] = op;
+    else
+        Py_TYPE(op)->tp_free((PyObject *)op);
+    Py_TRASHCAN_SAFE_END(op)
+}
+
+
 
 static PyObject *
 list_create(PyObject *self, PyObject *args) {
@@ -73,7 +96,6 @@ list_create(PyObject *self, PyObject *args) {
     return (PyObject *) op;
     // return Py_BuildValue("s", "list create!");
 }
-
 
 
 static int
@@ -249,6 +271,7 @@ PyInit_gillessList(void)
     PyObject *m = PyModule_Create(&moduledef);
     if (m == NULL)
         return NULL;
+    PyGll_Type.tp_dealloc= (destructor)PyGllObject_dealloc;
     Py_INCREF(&PyGll_Type);
     PyModule_AddObject(m, "gll", (PyObject *) &PyGll_Type);
     return m;

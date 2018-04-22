@@ -35,7 +35,7 @@ def main():
 	
 	test.test_create()
 
-	# test.test_append()
+	test.test_append()
 
 if __name__ == '__main__':
 	main()
