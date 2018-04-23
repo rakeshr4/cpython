@@ -9,12 +9,13 @@
 // #endif
 
 #include "gllobject.h"
+#include <pthread.h>
 #ifndef PyList_MAXFREELIST
 #define PyList_MAXFREELIST 80
 #endif
 static PyGllObject *free_list[PyList_MAXFREELIST];
 static int numfree = 0;
-
+static pthread_mutex_t gil_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static PyTypeObject PyGll_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
@@ -26,7 +27,6 @@ static PyTypeObject PyGll_Type = {
     .tp_free = PyObject_GC_Del,
     .tp_alloc = PyType_GenericAlloc
 };
-
 
 void
 PyGllObject_dealloc(PyGllObject *op)
@@ -40,7 +40,9 @@ PyGllObject_dealloc(PyGllObject *op)
     if (op->ob_item != NULL) {
         i = Py_SIZE(op);
         while (--i >= 0) {
+            pthread_mutex_lock(&gil_mutex);
             Py_XDECREF(op->ob_item[i]);
+            pthread_mutex_unlock(&gil_mutex);
         }
         PyMem_FREE(op->ob_item);
     }
@@ -128,10 +130,15 @@ list_create(PyObject *self, PyObject *args) {
     if (numfree) {
         numfree--;
         op = free_list[numfree];
+        pthread_mutex_lock(&gil_mutex);
         _Py_NewReference((PyObject *)op);
+        pthread_mutex_unlock(&gil_mutex);
+
     } 
     else {
+        pthread_mutex_lock(&gil_mutex);
         op = PyObject_GC_New(PyGllObject, &PyGll_Type);
+        pthread_mutex_unlock(&gil_mutex);
         if (op == NULL)
         {
             result = NULL;
@@ -144,7 +151,9 @@ list_create(PyObject *self, PyObject *args) {
     else {
         op->ob_item = (PyObject **) PyMem_Calloc(size, sizeof(PyObject *));
         if (op->ob_item == NULL) {
+            pthread_mutex_lock(&gil_mutex);
             Py_DECREF(op);
+            pthread_mutex_unlock(&gil_mutex);
             result = PyErr_NoMemory();
             goto exit;
         }
@@ -168,7 +177,9 @@ list_resize(PyGllObject *self, Py_ssize_t newsize)
 
      if (allocated >= newsize && newsize >= (allocated >> 1)) {
         assert(self->ob_item != NULL || newsize == 0);
+        pthread_mutex_lock(&gil_mutex);
         Py_SIZE(self) = newsize;
+        pthread_mutex_unlock(&gil_mutex);
         return 0;
     }
 
@@ -187,7 +198,9 @@ list_resize(PyGllObject *self, Py_ssize_t newsize)
         return -1;
     }
     self->ob_item = items;
+    pthread_mutex_lock(&gil_mutex);
     Py_SIZE(self) = newsize;
+    pthread_mutex_unlock(&gil_mutex);
     self->allocated = new_allocated;
     return 0;
 }
@@ -206,8 +219,11 @@ app1_gll(PyGllObject *self, PyObject *s)
 
     if (list_resize(self, n+1) < 0)
         return -1;
-
+    
+    pthread_mutex_lock(&gil_mutex);
     Py_INCREF(s);
+    pthread_mutex_unlock(&gil_mutex);
+    
     PyGll_SET_ITEM(self, n, s);
     return 0;
 }
@@ -257,13 +273,21 @@ set_item(PyObject *self, PyObject *args)
     newitem = Py_BuildValue("i", x);
 
     if (!PyGll_Check(gll)) {
+        
+        pthread_mutex_lock(&gil_mutex);
         Py_XDECREF(newitem);
+        pthread_mutex_unlock(&gil_mutex);
+        
         PyErr_BadInternalCall();
         result = -1;
         goto exit;
     }
     if (i < 0 || i >= Py_SIZE(gll)) {
+        
+        pthread_mutex_lock(&gil_mutex);
         Py_XDECREF(newitem);
+        pthread_mutex_unlock(&gil_mutex);
+        
         PyErr_SetString(PyExc_IndexError,
                         "list assignment index out of range");
         result = -1;
@@ -271,7 +295,9 @@ set_item(PyObject *self, PyObject *args)
     }
     
     p = (gll) -> ob_item + i;
+    pthread_mutex_lock(&gil_mutex);
     Py_XSETREF(*p, newitem);
+    pthread_mutex_unlock(&gil_mutex);
     result = 0;
 
     exit:
@@ -307,7 +333,10 @@ get_item(PyObject *self, PyObject *args) {
         Py_RETURN_NONE;
     } 
     else {
+        pthread_mutex_lock(&gil_mutex);
         Py_INCREF(item);
+        pthread_mutex_unlock(&gil_mutex);
+
         result = item;
     }
     
