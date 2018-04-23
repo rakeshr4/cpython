@@ -8,19 +8,19 @@
 // #include <sys/types.h>          /* For size_t */
 // #endif
 
-#include "gllobject.h"
+#include "gflobject.h"
 #ifndef PyList_MAXFREELIST
 #define PyList_MAXFREELIST 80
 #endif
-static PyGllObject *free_list[PyList_MAXFREELIST];
+static PyGflObject *free_list[PyList_MAXFREELIST];
 static int numfree = 0;
 
 
-static PyTypeObject PyGll_Type = {
+static PyTypeObject PyGfl_Type = {
     PyVarObject_HEAD_INIT(&PyType_Type, 0)
-    .tp_name = "gillessList.Gll",
-    .tp_doc = "Gll objects",
-    .tp_basicsize = sizeof(PyGllObject),
+    .tp_name = "gilfullList.Gfl",
+    .tp_doc = "Gfl objects",
+    .tp_basicsize = sizeof(PyGflObject),
     .tp_flags = Py_TPFLAGS_DEFAULT,
     .tp_new = PyType_GenericNew,
     .tp_free = PyObject_GC_Del,
@@ -29,14 +29,10 @@ static PyTypeObject PyGll_Type = {
 
 
 void
-PyGllObject_dealloc(PyGllObject *op)
+PyGflObject_dealloc(PyGflObject *op)
 {
-    
     Py_ssize_t i;
-
     Py_TRASHCAN_SAFE_BEGIN(op)
-    Py_BEGIN_ALLOW_THREADS
-
     if (op->ob_item != NULL) {
         i = Py_SIZE(op);
         while (--i >= 0) {
@@ -44,18 +40,15 @@ PyGllObject_dealloc(PyGllObject *op)
         }
         PyMem_FREE(op->ob_item);
     }
-    if (numfree < PyList_MAXFREELIST && PyGll_CheckExact(op))
+    if (numfree < PyList_MAXFREELIST && PyGfl_CheckExact(op))
         free_list[numfree++] = op;
     else
         Py_TYPE(op)->tp_free((PyObject *)op);
-
-    Py_END_ALLOW_THREADS
     Py_TRASHCAN_SAFE_END(op)
-
 }
 
 static PyObject *
-list_repr(PyGllObject *v)
+list_repr(PyGflObject *v)
 {
     Py_ssize_t i;
     PyObject *s;
@@ -113,54 +106,39 @@ error:
 static PyObject *
 list_create(PyObject *self, PyObject *args) {
     int size;
-    PyGllObject *op = NULL;
-    PyObject *result = NULL;
-
-    Py_BEGIN_ALLOW_THREADS
-
     PyArg_ParseTuple(args, "i", &size); 
+    PyGflObject *op = NULL;
+
     if (size < 0) {
         PyErr_BadInternalCall();
-        result = NULL;
-        goto exit;
+        return NULL;
     }
-
     if (numfree) {
+        // ;
         numfree--;
         op = free_list[numfree];
         _Py_NewReference((PyObject *)op);
-    } 
-    else {
-        op = PyObject_GC_New(PyGllObject, &PyGll_Type);
+    } else {
+        op = PyObject_GC_New(PyGflObject, &PyGfl_Type);
         if (op == NULL)
-        {
-            result = NULL;
-            goto exit;
-        }
+            return NULL;
     }
-
     if (size <= 0)
         op->ob_item = NULL;
     else {
         op->ob_item = (PyObject **) PyMem_Calloc(size, sizeof(PyObject *));
         if (op->ob_item == NULL) {
             Py_DECREF(op);
-            result = PyErr_NoMemory();
-            goto exit;
+            return PyErr_NoMemory();
         }
     }
-
     Py_SIZE(op) = size;
     op->allocated = size;
-    result = (PyObject *) op;
-
-    exit:
-        Py_END_ALLOW_THREADS
-        return result;
+    return (PyObject *) op;
 }
 
 static int
-list_resize(PyGllObject *self, Py_ssize_t newsize)
+list_resize(PyGflObject *self, Py_ssize_t newsize)
 {
     PyObject **items;
     size_t new_allocated, num_allocated_bytes;
@@ -193,9 +171,9 @@ list_resize(PyGllObject *self, Py_ssize_t newsize)
 }
 
 static int
-app1_gll(PyGllObject *self, PyObject *s)
+app1_gfl(PyGflObject *self, PyObject *s)
 {
-    Py_ssize_t n = PyGll_GET_SIZE(self);
+    Py_ssize_t n = PyGfl_GET_SIZE(self);
 
     assert (s != NULL);
     if (n == PY_SSIZE_T_MAX) {
@@ -208,28 +186,22 @@ app1_gll(PyGllObject *self, PyObject *s)
         return -1;
 
     Py_INCREF(s);
-    PyGll_SET_ITEM(self, n, s);
+    PyGfl_SET_ITEM(self, n, s);
     return 0;
 }
 
 static PyObject *
 list_append(PyObject *self, PyObject *args) {
     	
-    int result;
 	PyObject *ob, *s;
-
-    Py_BEGIN_ALLOW_THREADS
-
 	PyArg_ParseTuple(args, "OO", &ob, &s); 
+	
     if (s!= NULL) {
-        result = app1_gll((PyGllObject *)ob, s);
+		return Py_BuildValue("i", app1_gfl((PyGflObject *)ob, s));
     }
     else {
-        result = -1;
+        return Py_BuildValue("i", -1);
     }
-
-    Py_END_ALLOW_THREADS
-    return Py_BuildValue("i", result);
 }
 
 static PyObject *
@@ -241,34 +213,23 @@ static PyObject *
 set_item(PyObject *self, PyObject *args)
 {
     Py_ssize_t i;
-    PyObject *gll, *newitem;
+    PyObject *gfl, *newitem;
+    PyArg_ParseTuple(args, "OnO", &gfl, &i, &newitem); 
     PyObject **p;
-    int result;
-
-    Py_BEGIN_ALLOW_THREADS
-
-    PyArg_ParseTuple(args, "OnO", &gll, &i, &newitem); 
-    if (!PyGll_Check(gll)) {
+    if (!PyGfl_Check(gfl)) {
         Py_XDECREF(newitem);
         PyErr_BadInternalCall();
-        result = -1;
-        goto exit;
+        return NULL;
     }
-    if (i < 0 || i >= Py_SIZE(gll)) {
+    if (i < 0 || i >= Py_SIZE(gfl)) {
         Py_XDECREF(newitem);
         PyErr_SetString(PyExc_IndexError,
                         "list assignment index out of range");
-        result = -1;
-        goto exit;
+        return NULL;
     }
-    
-    p = ((PyGllObject *)gll) -> ob_item + i;
+    p = ((PyGflObject *)gfl) -> ob_item + i;
     Py_XSETREF(*p, newitem);
-    result = 0;
-
-    exit:
-        Py_END_ALLOW_THREADS
-        return Py_BuildValue("i", result);
+    return Py_BuildValue("i", 0);
 
 }
 
@@ -276,34 +237,23 @@ static PyObject *
 get_item(PyObject *self, PyObject *args) {
 
     Py_ssize_t i;
-    PyObject *op, *result, *item;
-
-    Py_BEGIN_ALLOW_THREADS
-
+    PyObject *op;
     PyArg_ParseTuple(args, "On", &op, &i);
-    if (!PyGll_Check(op)) {
+    if (!PyGfl_Check(op)) {
         PyErr_BadInternalCall();
-        result = NULL;
-        goto exit;
+        return NULL;
     }
     if (i < 0 || i >= Py_SIZE(op)) {
         PyErr_SetString(PyExc_IndexError, "list index out of range");
-        result = NULL;
-        goto exit;
+        return NULL;
     }
-
-    item = ((PyGllObject *)op) -> ob_item[i];
-    
+    PyObject *item = ((PyGflObject *)op) -> ob_item[i];
     if(item == NULL) {
         Py_RETURN_NONE;
-    } 
-    else {
-        result = item;
     }
-    
-    exit:
-        Py_END_ALLOW_THREADS
-        return result;
+    else {
+        return item;
+    }
 }
 
 
@@ -321,7 +271,7 @@ module_functions[] = {
 
 static struct PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
-    "gillessList",     /* m_name */
+    "gilfullList",     /* m_name */
     "This is a module",  /* m_doc */
     -1,                  /* m_size */
     module_functions,    /* m_methods */
@@ -335,14 +285,14 @@ static struct PyModuleDef moduledef = {
 // This function is called to initialize the module.
 
 PyMODINIT_FUNC 
-PyInit_gillessList(void)
+PyInit_gilfullList(void)
 {
     PyObject *m = PyModule_Create(&moduledef);
     if (m == NULL)
         return NULL;
-    PyGll_Type.tp_dealloc= (destructor)PyGllObject_dealloc;
-    PyGll_Type.tp_repr = (reprfunc)list_repr;
-    Py_INCREF(&PyGll_Type);
-    PyModule_AddObject(m, "gll", (PyObject *) &PyGll_Type);
+    PyGfl_Type.tp_dealloc= (destructor)PyGflObject_dealloc;
+    PyGfl_Type.tp_repr = (reprfunc)list_repr;
+    Py_INCREF(&PyGfl_Type);
+    PyModule_AddObject(m, "gfl", (PyObject *) &PyGfl_Type);
     return m;
 }
