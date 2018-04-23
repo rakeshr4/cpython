@@ -48,7 +48,7 @@ PyGflObject_dealloc(PyGflObject *op)
 }
 
 static PyObject *
-list_repr(PyGflObject *v)
+PyGflObject_repr(PyGflObject *v)
 {
     Py_ssize_t i;
     PyObject *s;
@@ -105,8 +105,8 @@ error:
 
 static PyObject *
 list_create(PyObject *self, PyObject *args) {
-    int size;
-    PyArg_ParseTuple(args, "i", &size); 
+    Py_ssize_t size;
+    PyArg_ParseTuple(args, "n", &size);
     PyGflObject *op = NULL;
 
     if (size < 0) {
@@ -192,12 +192,13 @@ app1_gfl(PyGflObject *self, PyObject *s)
 
 static PyObject *
 list_append(PyObject *self, PyObject *args) {
-    	
-	PyObject *ob, *s;
-	PyArg_ParseTuple(args, "OO", &ob, &s); 
-	
+	PyGflObject *ob;
+    PyObject *s;
+    int x;
+    PyArg_ParseTuple(args, "Oi", &ob, &x); 
+    s = Py_BuildValue("i", x);
     if (s!= NULL) {
-		return Py_BuildValue("i", app1_gfl((PyGflObject *)ob, s));
+		return Py_BuildValue("i", app1_gfl(ob, s));
     }
     else {
         return Py_BuildValue("i", -1);
@@ -213,9 +214,14 @@ static PyObject *
 set_item(PyObject *self, PyObject *args)
 {
     Py_ssize_t i;
-    PyObject *gfl, *newitem;
-    PyArg_ParseTuple(args, "OnO", &gfl, &i, &newitem); 
+    PyGflObject *gfl;
+    PyObject *newitem;
+    int x;
+
+    PyArg_ParseTuple(args, "Oni", &gfl, &i, &x); 
+    newitem = Py_BuildValue("i", x);
     PyObject **p;
+
     if (!PyGfl_Check(gfl)) {
         Py_XDECREF(newitem);
         PyErr_BadInternalCall();
@@ -227,31 +233,35 @@ set_item(PyObject *self, PyObject *args)
                         "list assignment index out of range");
         return NULL;
     }
-    p = ((PyGflObject *)gfl) -> ob_item + i;
+    p = (gfl) -> ob_item + i;
     Py_XSETREF(*p, newitem);
     return Py_BuildValue("i", 0);
-
 }
+static PyObject *indexerr = NULL;
 
 static PyObject *
 get_item(PyObject *self, PyObject *args) {
 
     Py_ssize_t i;
-    PyObject *op;
+    PyGflObject *op;
     PyArg_ParseTuple(args, "On", &op, &i);
+
     if (!PyGfl_Check(op)) {
         PyErr_BadInternalCall();
         return NULL;
     }
+
     if (i < 0 || i >= Py_SIZE(op)) {
         PyErr_SetString(PyExc_IndexError, "list index out of range");
         return NULL;
     }
-    PyObject *item = ((PyGflObject *)op) -> ob_item[i];
+
+    PyObject *item = (op) -> ob_item[i];
     if(item == NULL) {
         Py_RETURN_NONE;
     }
     else {
+        Py_INCREF(item);
         return item;
     }
 }
@@ -291,7 +301,7 @@ PyInit_gilfullList(void)
     if (m == NULL)
         return NULL;
     PyGfl_Type.tp_dealloc= (destructor)PyGflObject_dealloc;
-    PyGfl_Type.tp_repr = (reprfunc)list_repr;
+    PyGfl_Type.tp_repr = (reprfunc)PyGflObject_repr;
     Py_INCREF(&PyGfl_Type);
     PyModule_AddObject(m, "gfl", (PyObject *) &PyGfl_Type);
     return m;

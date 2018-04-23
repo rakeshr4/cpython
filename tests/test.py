@@ -38,14 +38,14 @@ class Test():
 
 
 def main():
-	print("Testing gillessList")	
-	testgll = Test(gll)
-	testgll.test_create()
-	testgll.test_append()
 	print("Testing gilfullList")
 	testgfl = Test(gfl)
 	testgfl.test_create()
 	testgfl.test_append()
+	print("Testing gillessList")	
+	testgll = Test(gll)
+	testgll.test_create()
+	testgll.test_append()
 
 
 if __name__ == '__main__':

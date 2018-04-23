@@ -216,11 +216,15 @@ static PyObject *
 list_append(PyObject *self, PyObject *args) {
     	
     int result;
-	PyObject *ob, *s;
+	PyObject *s;
+    PyGllObject *ob;
+    int x;
 
     Py_BEGIN_ALLOW_THREADS
 
-	PyArg_ParseTuple(args, "OO", &ob, &s); 
+    PyArg_ParseTuple(args, "Oi", &ob, &x); 
+    s = Py_BuildValue("i", x);
+
     if (s!= NULL) {
         result = app1_gll((PyGllObject *)ob, s);
     }
@@ -241,13 +245,17 @@ static PyObject *
 set_item(PyObject *self, PyObject *args)
 {
     Py_ssize_t i;
-    PyObject *gll, *newitem;
     PyObject **p;
     int result;
+    PyGllObject *gll;
+    PyObject *newitem;
+    int x;
 
     Py_BEGIN_ALLOW_THREADS
 
-    PyArg_ParseTuple(args, "OnO", &gll, &i, &newitem); 
+    PyArg_ParseTuple(args, "Oni", &gll, &i, &x); 
+    newitem = Py_BuildValue("i", x);
+
     if (!PyGll_Check(gll)) {
         Py_XDECREF(newitem);
         PyErr_BadInternalCall();
@@ -262,7 +270,7 @@ set_item(PyObject *self, PyObject *args)
         goto exit;
     }
     
-    p = ((PyGllObject *)gll) -> ob_item + i;
+    p = (gll) -> ob_item + i;
     Py_XSETREF(*p, newitem);
     result = 0;
 
@@ -276,7 +284,8 @@ static PyObject *
 get_item(PyObject *self, PyObject *args) {
 
     Py_ssize_t i;
-    PyObject *op, *result, *item;
+    PyObject *result, *item;
+    PyGllObject *op;
 
     Py_BEGIN_ALLOW_THREADS
 
@@ -292,12 +301,13 @@ get_item(PyObject *self, PyObject *args) {
         goto exit;
     }
 
-    item = ((PyGllObject *)op) -> ob_item[i];
+    item = (op) -> ob_item[i];
     
     if(item == NULL) {
         Py_RETURN_NONE;
     } 
     else {
+        Py_INCREF(item);
         result = item;
     }
     
