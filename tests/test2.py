@@ -110,7 +110,6 @@ def multi_threaded_test(obj, numThreads):
 def main():
 
 	gc.disable()
-	sys.setcheckinterval(1000)
 
 	create_data_file = open("create_data.csv", "w")
 	set_get_data_file = open("set_get_data.csv", "w")
@@ -131,32 +130,32 @@ def main():
 		for j in range(50):
 
 	
-			# print("Testing gilfullList for single threaded ")
-			# create_list_time, set_get_time, append_time = single_threaded_test(testgfl)
-			# gfl_create_avg += create_list_time
-			# gfl_get_set_avg += create_list_time
-			# gfl_append_avg += append_time
-
-
-			# print("\n\nTesting gillessList for single threaded  ")	
-			# create_list_time, set_get_time, append_time = single_threaded_test(testgll)
-			# gll_create_avg += create_list_time
-			# gll_get_set_avg += create_list_time
-			# gll_append_avg += append_time
-
-
-			print("\n\nTesting gilfullList for multi threaded ")	
-			create_list_time, set_get_time, append_time = multi_threaded_test(testgfl, 3)
+			print("Testing gilfullList for single threaded ")
+			create_list_time, set_get_time, append_time = single_threaded_test(testgfl)
 			gfl_create_avg += create_list_time
-			gfl_get_set_avg += create_list_time
+			gfl_get_set_avg += set_get_time
 			gfl_append_avg += append_time
+
+
+			print("\n\nTesting gillessList for single threaded  ")	
+			create_list_time, set_get_time, append_time = single_threaded_test(testgll)
+			gll_create_avg += create_list_time
+			gll_get_set_avg += set_get_time
+			gll_append_avg += append_time
+
+
+			# print("\n\nTesting gilfullList for multi threaded ")	
+			# create_list_time, set_get_time, append_time = multi_threaded_test(testgfl, 3)
+			# gfl_create_avg += create_list_time
+			# gfl_get_set_avg += set_get_time
+			# gfl_append_avg += append_time
 		    		
 
-			print("\n\nTesting gillessList for multi threaded  ")	
-			create_list_time, set_get_time, append_time = multi_threaded_test(testgll, 3)
-			gll_create_avg += create_list_time
-			gll_get_set_avg += create_list_time
-			gll_append_avg += append_time
+			# print("\n\nTesting gillessList for multi threaded  ")	
+			# create_list_time, set_get_time, append_time = multi_threaded_test(testgll, 3)
+			# gll_create_avg += create_list_time
+			# gll_get_set_avg += set_get_time
+			# gll_append_avg += append_time
 
 		gfl_create_avg /= 50
 		gfl_get_set_avg /= 50
